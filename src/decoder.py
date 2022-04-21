@@ -14,4 +14,4 @@ def decode(buffer: BufferedReader, n=1):
 
         out.append(bytes_buffer)
 
-    return out if n != 1 else out[0]
+    return out

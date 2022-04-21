@@ -20,10 +20,7 @@ def main():
     f.close()
 
     with open("./output.mjpeg", "rb") as fi:
-        frame1 = decode(fi, n=1)
-
-        with open("./tmp.jpeg", "wb") as fo:
-            fo.write(frame1)
+        frames = decode(fi, n=1)
 
 
 if __name__ == "__main__":
