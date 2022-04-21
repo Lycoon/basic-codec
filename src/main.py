@@ -1,5 +1,6 @@
 import sys
 from encoder import encode
+from decoder import decode
 from imutils.video import FileVideoStream
 
 
@@ -17,6 +18,12 @@ def main():
             return
 
     f.close()
+
+    with open("./output.mjpeg", "rb") as fi:
+        frame1 = decode(fi, n=1)
+
+        with open("./tmp.jpeg", "wb") as fo:
+            fo.write(frame1)
 
 
 if __name__ == "__main__":
