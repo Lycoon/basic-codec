@@ -5,41 +5,46 @@ This is a dummy CODEC, this will not reduce your video, will greatly increase it
 
 ## v0 architecture
 
+### Codec file header
+
+None
+
+### Video data (per frame)
+
 ```
-        10 bits      |   frame_size bits
-/---------------------------------------------\/---------------------------------------------\
-| frame_size in bits |   JPEG Compression     || frame_size in bits |   JPEG Compression    | ...
-\---------------------------------------------/\---------------------------------------------/
+10 bits    : FRAME_BYTES
+FRAME_BYTES: JPEG Compression
 ```
 
 ## v1 architecture
 
 ### Codec file header
 
-```
-8 bits  : Macroblock size
-16 bits : Initial frame size
-x bits  : JPEG initial frame (x being its size)
-```
+| Bit/Byte | Data |
+|-------|------|
+| 8 bits  | Macroblock size |
+| 16 bits | INIT_FRAME_BYTES |
+| INIT_FRAME_BYTES | JPEG initial frame |
 
 ### Video data (per frame)
 
-```
-1 bit   : JPEG Flag
 
-IF JPEG Flag = 1
-16 bits : Frame size
-x bits  : JPEG frame size
+JPEG Flag is 1 (P-Frame)
 
-IF JPEG Flag = 0
-16 bits : # of macroblocks
+| Bit/Byte | Data |
+|-------|------|
+| 8 bits  | Flags |
+| 16 bits | INIT_FRAME_BYTES |
+| INIT_FRAME_BYTES | JPEG initial frame |
 
-List OF macroblocks:
-8 bits  : x coordinates
-8 bits  : y coordinates
-Macroblock size² * 3 : Macroblock to be refreshed
+JPEG Flag is 0 (I-Frame)
 
-```
+| Bit/Byte | Data |
+|-------|------|
+| 8 bits  | Flags |
+| 8 bits  | X coord. |
+| 8 bits  | Y coord. |
+| MacroBlock**2 * 3 | Macroblock Refresh |
 
 ### Resources
 

@@ -1,4 +1,3 @@
-from io import BufferedWriter
 import sys
 
 import cv2
@@ -8,10 +7,7 @@ from decoder import decode
 from imutils.video import FileVideoStream
 from bitstring import BitArray
 
-
-def write_buf(value: int, bytes: int, buf: BufferedWriter):
-    buf.write(value.to_bytes(bytes, byteorder="big"))
-
+from util import write_buf
 
 def main():
     macroblock_size = 8
