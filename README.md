@@ -23,7 +23,7 @@ FRAME_BYTES: JPEG Compression
 | Bit/Byte | Data |
 |-------|------|
 | 8 bits  | Macroblock size |
-| 16 bits | INIT_FRAME_BYTES |
+| 32 bits | INIT_FRAME_BYTES |
 | INIT_FRAME_BYTES | JPEG initial frame |
 
 ### Video data (per frame)
@@ -34,7 +34,7 @@ JPEG Flag is 1 (P-Frame)
 | Bit/Byte | Data |
 |-------|------|
 | 8 bits  | Flags |
-| 16 bits | INIT_FRAME_BYTES |
+| 32 bits | INIT_FRAME_BYTES |
 | INIT_FRAME_BYTES | JPEG initial frame |
 
 JPEG Flag is 0 (I-Frame)
