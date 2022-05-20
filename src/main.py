@@ -11,10 +11,10 @@ from util import write_buf_bytes
 
 
 def main():
-    macroblock_size = 8
+    macroblock_size = 16
 
     # Main encoding loop while reading mp4
-    vs = FileVideoStream("./road.mp4").start()
+    vs = FileVideoStream("./timelapse.mp4").start()
 
     i = 0
     last_frame = None
@@ -24,7 +24,8 @@ def main():
 
     while (i := i + 1) and not (frame := vs.read()) is None:
         try:
-            last_frame = encode(frame, last_frame, f)
+            print("frame", f"{i:0>5}")
+            last_frame = encode(frame, last_frame, f, i, macroblock_size)
         except Exception as e:
             print(e)
             print(f"Could not read frame {i}", file=sys.stderr)
