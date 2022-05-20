@@ -29,7 +29,7 @@ def main():
             last_frame = encode(frame, last_frame, f, i, macroblock_size)
             print()
 
-            if i == 5:
+            if i == 2:
                 break
         except Exception as e:
             print(e)
@@ -47,7 +47,7 @@ def main():
     )
 
     with open("./output.mjpeg", "rb") as fi:
-        frames = decode(fi, n=5)
+        frames = decode(fi, n=2)
 
     for ii, frame in enumerate(frames):
         cv2.imwrite(f"out/frame_{ii:0>4}.jpeg", frame)
