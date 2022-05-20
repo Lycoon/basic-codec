@@ -1,5 +1,6 @@
 import io
 import itertools
+import os
 import cv2
 
 from io import BufferedWriter
@@ -43,7 +44,6 @@ def encode(
     if p_frame is None:
         # Codec file Header
         initial_frame, initial_frame_size = jpeg(current_frame)
-        write_buf_bytes(1, 1, out)  # flag
         write_buf_bytes(initial_frame_size, 4, out)
         write_buf(initial_frame, out)
 
@@ -82,16 +82,24 @@ def encode(
             ] = block
             block_idx += 1
 
-    rect = np.copy(p_frame)
+    write_buf_bytes(len(best_coords), 2, out)
     for ii, jj in best_coords:
         write_buf_bytes(ii // BLOCK_SIZE, 2, out)
         write_buf_bytes(jj // BLOCK_SIZE, 2, out)
         block = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
         p_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE] = block
 
-    np.save(out, ALL_BLOCKS[:block_idx])
+    pos = out.tell()
+    write_buf_bytes(0, 8, out)
+    np.save(out, ALL_BLOCKS[:block_idx], allow_pickle=False)
+    new_pos = out.tell()
 
-    cv2.imwrite(f"out/p_frame_{i:0>5}.jpeg", p_frame)
-    cv2.imwrite(f"out/p_frame_blocks_{i:0>5}.jpeg", rect)
+    print(block_idx * BLOCK_SIZE * BLOCK_SIZE * 3)
+
+    out.seek(pos, os.SEEK_SET)
+    write_buf_bytes(block_idx * BLOCK_SIZE * BLOCK_SIZE * 3, 8, out)
+    out.seek(0, os.SEEK_END)
+
+    out.seek(pos)
 
     return p_frame
