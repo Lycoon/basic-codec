@@ -15,7 +15,7 @@ def main():
     macroblock_size = 16
 
     # Main encoding loop while reading mp4
-    vs = FileVideoStream("./timelapse.mp4").start()
+    vs = FileVideoStream("./road.mp4").start()
 
     i = 0
     last_frame = None

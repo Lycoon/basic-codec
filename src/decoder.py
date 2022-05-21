@@ -59,6 +59,10 @@ def decode(buffer: BufferedReader, n=1):
             ii = pos[0]
             jj = pos[1]
             block = data[block_idx]
+
+            print("ii: ", ii, ", jj: ", jj)
+            print("block_idx: ", block_idx)
+            print("block_size: ", block_size, ", block.shape: ", block.shape)
             frame[ii : ii + block_size, jj : jj + block_size] = block
 
         out.append(frame)
