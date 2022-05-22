@@ -38,8 +38,7 @@ def decode(buffer: BufferedReader, n=1):
 
     frame = initial_frame
 
-    for i in range(1, n):
-        print(i)
+    for _ in range(1, n):
         nb_pts = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
         points = []
         for _ in range(nb_pts):
@@ -47,23 +46,19 @@ def decode(buffer: BufferedReader, n=1):
             x = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
             points.append((y * block_size, x * block_size))
 
-        buff_array_size = int.from_bytes(read_exactly(buffer, 8), byteorder="big")
-        print(buff_array_size)
-        buff_array = buffer.read(buff_array_size)
-
-        data = np.frombuffer(buff_array, dtype=np.uint8)
-        data = data.reshape((-1, block_size, block_size, 3))
+        data = np.load(buffer)
 
         frame = np.copy(frame)
+        frameY, frameX = frame.shape[0], frame.shape[1]
         for block_idx, pos in enumerate(points):
             ii = pos[0]
             jj = pos[1]
             block = data[block_idx]
 
-            print("ii: ", ii, ", jj: ", jj)
-            print("block_idx: ", block_idx)
-            print("block_size: ", block_size, ", block.shape: ", block.shape)
-            frame[ii : ii + block_size, jj : jj + block_size] = block
+            ii_plus = min(block_size, frameY - ii)
+            jj_plus = min(block_size, frameX - jj)
+
+            frame[ii : ii + ii_plus, jj : jj + jj_plus] = block[:ii_plus, :jj_plus]
 
         out.append(frame)
 

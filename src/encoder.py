@@ -89,17 +89,5 @@ def encode(
         block = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
         p_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE] = block
 
-    pos = out.tell()
-    write_buf_bytes(0, 8, out)
     np.save(out, ALL_BLOCKS[:block_idx], allow_pickle=False)
-    new_pos = out.tell()
-
-    print(block_idx * BLOCK_SIZE * BLOCK_SIZE * 3)
-
-    out.seek(pos, os.SEEK_SET)
-    write_buf_bytes(block_idx * BLOCK_SIZE * BLOCK_SIZE * 3, 8, out)
-    out.seek(0, os.SEEK_END)
-
-    out.seek(pos)
-
     return p_frame

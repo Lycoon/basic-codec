@@ -15,7 +15,7 @@ def main():
     macroblock_size = 16
 
     # Main encoding loop while reading mp4
-    vs = FileVideoStream("./road.mp4").start()
+    vs = FileVideoStream("./timelapse.mp4").start()
 
     i = 0
     last_frame = None
@@ -29,7 +29,7 @@ def main():
             last_frame = encode(frame, last_frame, f, i, macroblock_size)
             print()
 
-            if i == 2:
+            if i == 10:
                 break
         except Exception as e:
             print(e)
@@ -47,7 +47,7 @@ def main():
     )
 
     with open("./output.mjpeg", "rb") as fi:
-        frames = decode(fi, n=2)
+        frames = decode(fi, n=10)
 
     for ii, frame in enumerate(frames):
         cv2.imwrite(f"out/frame_{ii:0>4}.jpeg", frame)
