@@ -18,6 +18,7 @@ def main():
     vs = FileVideoStream("./timelapse.mp4").start()
 
     i = 0
+    latest_jpeg = 0
     last_frame = None
 
     f = open("./output.mjpeg", "wb")
@@ -26,10 +27,14 @@ def main():
     while (i := i + 1) and not (frame := vs.read()) is None:
         try:
             print("frame", f"{i:0>5}")
-            last_frame = encode(frame, last_frame, f, i, macroblock_size)
+            last_frame, is_jpeg = encode(
+                frame, last_frame, f, i, macroblock_size, latest_jpeg
+            )
+            if is_jpeg:
+                latest_jpeg = i
             print()
 
-            if i == 10:
+            if i == 150:
                 break
         except Exception as e:
             print(e)
@@ -47,7 +52,7 @@ def main():
     )
 
     with open("./output.mjpeg", "rb") as fi:
-        frames = decode(fi, n=10)
+        frames = decode(fi, n=150)
 
     for ii, frame in enumerate(frames):
         cv2.imwrite(f"out/frame_{ii:0>4}.jpeg", frame)

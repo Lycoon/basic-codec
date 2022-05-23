@@ -36,13 +36,19 @@ ALL_BLOCKS = np.zeros(shape=(1, 1))
 
 
 def encode(
-    current_frame: NDArray, p_frame: NDArray, out: BufferedWriter, i=None, macroblock=16
+    current_frame: NDArray,
+    p_frame: NDArray,
+    out: BufferedWriter,
+    i=None,
+    macroblock=16,
+    latest_jpeg=0,
 ) -> NDArray:
     BLOCK_SIZE = macroblock
     global ALL_BLOCKS
 
     if p_frame is None:
         # Codec file Header
+        write_buf_bytes(1, 1, out)
         initial_frame, initial_frame_size = jpeg(current_frame)
         write_buf_bytes(initial_frame_size, 4, out)
         write_buf(initial_frame, out)
@@ -52,7 +58,8 @@ def encode(
             shape=(dim // BLOCK_SIZE**2, BLOCK_SIZE, BLOCK_SIZE, 3), dtype=np.uint8
         )
 
-        return current_frame
+        print("using jpeg")
+        return current_frame, True
 
     r1 = range(0, current_frame.shape[0], BLOCK_SIZE)
     r2 = range(0, current_frame.shape[1], BLOCK_SIZE)
@@ -78,16 +85,36 @@ def encode(
             best_coords.append((ii, jj))
             block = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
             ALL_BLOCKS[
-                block_idx, : block.shape[0], : block.shape[1], : block.shape[2]
+                block_idx,
+                : block.shape[0],
+                : block.shape[1],
+                : block.shape[2],
             ] = block
             block_idx += 1
 
+    if i - latest_jpeg >= 10 and block_idx > ALL_BLOCKS.shape[0] / 8:
+        write_buf_bytes(1, 1, out)
+
+        initial_frame, initial_frame_size = jpeg(current_frame)
+        write_buf_bytes(initial_frame_size, 4, out)
+        write_buf(initial_frame, out)
+
+        dim = current_frame.shape[0] * current_frame.shape[1]
+        ALL_BLOCKS = np.zeros(
+            shape=(dim // BLOCK_SIZE**2, BLOCK_SIZE, BLOCK_SIZE, 3), dtype=np.uint8
+        )
+
+        print("using jpeg")
+        return current_frame, True
+
+    write_buf_bytes(0, 1, out)
     write_buf_bytes(len(best_coords), 2, out)
     for ii, jj in best_coords:
         write_buf_bytes(ii // BLOCK_SIZE, 2, out)
         write_buf_bytes(jj // BLOCK_SIZE, 2, out)
-        block = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
-        p_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE] = block
+        block_curr = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
+        p_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE] = block_curr
 
+    print("blocks:", block_idx, "/", ALL_BLOCKS.shape[0])
     np.save(out, ALL_BLOCKS[:block_idx], allow_pickle=False)
-    return p_frame
+    return p_frame, False

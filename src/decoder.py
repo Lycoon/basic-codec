@@ -28,38 +28,50 @@ def decode(buffer: BufferedReader, n=1):
 
     block_size = int.from_bytes(read_exactly(buffer, 1), byteorder="big")
 
-    nb_bytes = int.from_bytes(read_exactly(buffer, 4), byteorder="big")
+    frame = None
+    for _ in range(0, n):
+        if int.from_bytes(buffer.read(1), byteorder="big") == 1:
+            nb_bytes = int.from_bytes(read_exactly(buffer, 4), byteorder="big")
 
-    initial_frame = read_exactly(buffer, nb_bytes)
-    initial_frame = np.fromstring(initial_frame, dtype=np.uint8)
-    initial_frame = cv2.imdecode(initial_frame, cv2.IMREAD_UNCHANGED)
+            initial_frame = read_exactly(buffer, nb_bytes)
+            initial_frame = np.fromstring(initial_frame, dtype=np.uint8)
+            initial_frame = cv2.imdecode(initial_frame, cv2.IMREAD_UNCHANGED)
 
-    out.append(initial_frame)
+            out.append(initial_frame)
 
-    frame = initial_frame
+            frame = initial_frame
+        else:
+            nb_pts = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
+            points = []
+            for _ in range(nb_pts):
+                y = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
+                x = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
+                points.append((y * block_size, x * block_size))
 
-    for _ in range(1, n):
-        nb_pts = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
-        points = []
-        for _ in range(nb_pts):
-            y = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
-            x = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
-            points.append((y * block_size, x * block_size))
+            data = np.load(buffer)
 
-        data = np.load(buffer)
+            frame = np.copy(frame)
+            frameY, frameX = frame.shape[0], frame.shape[1]
+            for block_idx, pos in enumerate(points):
+                ii = pos[0]
+                jj = pos[1]
+                block = data[block_idx]
 
-        frame = np.copy(frame)
-        frameY, frameX = frame.shape[0], frame.shape[1]
-        for block_idx, pos in enumerate(points):
-            ii = pos[0]
-            jj = pos[1]
-            block = data[block_idx]
+                ii_plus = min(block_size, frameY - ii)
+                jj_plus = min(block_size, frameX - jj)
 
-            ii_plus = min(block_size, frameY - ii)
-            jj_plus = min(block_size, frameX - jj)
-
-            frame[ii : ii + ii_plus, jj : jj + jj_plus] = block[:ii_plus, :jj_plus]
+                frame[ii : ii + ii_plus, jj : jj + jj_plus] = block[:ii_plus, :jj_plus]
 
         out.append(frame)
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    video = cv2.VideoWriter(
+        "out/test.mp4", fourcc, float(10), (out[0].shape[1], out[0].shape[0])
+    )
+
+    for f in out:
+        video.write(f)
+
+    video.release()
 
     return out
