@@ -1,5 +1,6 @@
 import io
 import itertools
+import math
 import os
 import cv2
 
@@ -23,9 +24,9 @@ def jpeg(img: NDArray):
     return contents, len(contents)
 
 
-def abs_diff(A: NDArray, B: NDArray):
+def abs_diff(A: NDArray, B: NDArray, max: int = 180):
     a = A - B
-    b = np.uint8(A < B) * 254 + 1
+    b = np.uint8(A < B) * (max - 1) + 1
     return a * b
 
 
@@ -33,6 +34,8 @@ BLOCK_SIZE = 8
 
 i = 0
 ALL_BLOCKS = np.zeros(shape=(1, 1))
+MAX_BLOCK_UPDATE = 10
+ALL_BLOCKS_UPDATE = [[] for _ in range(MAX_BLOCK_UPDATE)]
 
 
 def encode(
@@ -41,10 +44,13 @@ def encode(
     out: BufferedWriter,
     i=None,
     macroblock=16,
-    latest_jpeg=0,
 ) -> NDArray:
     BLOCK_SIZE = macroblock
     global ALL_BLOCKS
+    global ALL_BLOCKS_UPDATE
+
+    r1 = range(0, current_frame.shape[0], BLOCK_SIZE)
+    r2 = range(0, current_frame.shape[1], BLOCK_SIZE)
 
     if p_frame is None:
         # Codec file Header
@@ -53,24 +59,34 @@ def encode(
         write_buf_bytes(initial_frame_size, 4, out)
         write_buf(initial_frame, out)
 
-        dim = current_frame.shape[0] * current_frame.shape[1]
+        dim = (current_frame.shape[0] + BLOCK_SIZE) * (
+            current_frame.shape[1] + BLOCK_SIZE
+        )
         ALL_BLOCKS = np.zeros(
-            shape=(dim // BLOCK_SIZE**2, BLOCK_SIZE, BLOCK_SIZE, 3), dtype=np.uint8
+            shape=(math.ceil(dim / BLOCK_SIZE**2), BLOCK_SIZE, BLOCK_SIZE, 3),
+            dtype=np.uint8,
         )
 
-        print("using jpeg")
-        return current_frame, True
+        for ii, jj in itertools.product(r1, r2):
+            ALL_BLOCKS_UPDATE[MAX_BLOCK_UPDATE - 1] = (ii, jj)
 
-    r1 = range(0, current_frame.shape[0], BLOCK_SIZE)
-    r2 = range(0, current_frame.shape[1], BLOCK_SIZE)
+        print("using jpeg")
+        return current_frame
+
     best_coords = []
 
     # grayscales the buffers
-    block_current_gray: NDArray = np.sum(current_frame, axis=2).astype(np.uint8)
-    block_p_frame_gray: NDArray = np.sum(p_frame, axis=2).astype(np.uint8)
+    block_current_HLS: NDArray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2HLS).astype(
+        np.uint8
+    )
+    block_p_frame_HLS: NDArray = cv2.cvtColor(p_frame, cv2.COLOR_BGR2HLS).astype(
+        np.uint8
+    )
 
     # absolute difference
-    diff_gray = abs_diff(block_current_gray, block_p_frame_gray) / 255
+    diff_h = abs_diff(block_current_HLS[:, :, 0], block_p_frame_HLS[:, :, 0], 180) / 180
+    diff_l = abs_diff(block_current_HLS[:, :, 1], block_p_frame_HLS[:, :, 1], 255) / 255
+    # diff_s = abs_diff(block_current_HLS[:, :, 2], block_p_frame_HLS[:, :, 2], 255) / 255
 
     # Loops over all blocks
     RATIO = 1 / 5
@@ -79,33 +95,31 @@ def encode(
 
     block_idx = 0
     for ii, jj in itertools.product(r1, r2):
-        block = diff_gray[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
-        sum_diff = np.sum(block)
-        if sum_diff > BLOCK_SIZE**2 * RATIO:
-            best_coords.append((ii, jj))
-            block = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
-            ALL_BLOCKS[
-                block_idx,
-                : block.shape[0],
-                : block.shape[1],
-                : block.shape[2],
-            ] = block
-            block_idx += 1
+        for diff in [diff_h, diff_l]:
+            block = diff[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
+            sum_diff = np.sum(block)
+            if sum_diff > BLOCK_SIZE**2 * RATIO or (ii, jj) in ALL_BLOCKS_UPDATE[0]:
+                best_coords.append((ii, jj))
+                block = current_frame[ii : ii + BLOCK_SIZE, jj : jj + BLOCK_SIZE]
+                ALL_BLOCKS[
+                    block_idx,
+                    : block.shape[0],
+                    : block.shape[1],
+                    : block.shape[2],
+                ] = block
+                ALL_BLOCKS_UPDATE[MAX_BLOCK_UPDATE - 1] = (ii, jj)
+                block_idx += 1
+                break
 
-    if i - latest_jpeg >= 10 and block_idx > ALL_BLOCKS.shape[0] / 8:
+    if block_idx > ALL_BLOCKS.shape[0] / 2:
         write_buf_bytes(1, 1, out)
 
         initial_frame, initial_frame_size = jpeg(current_frame)
         write_buf_bytes(initial_frame_size, 4, out)
         write_buf(initial_frame, out)
 
-        dim = current_frame.shape[0] * current_frame.shape[1]
-        ALL_BLOCKS = np.zeros(
-            shape=(dim // BLOCK_SIZE**2, BLOCK_SIZE, BLOCK_SIZE, 3), dtype=np.uint8
-        )
-
         print("using jpeg")
-        return current_frame, True
+        return current_frame
 
     write_buf_bytes(0, 1, out)
     write_buf_bytes(len(best_coords), 2, out)
@@ -117,4 +131,8 @@ def encode(
 
     print("blocks:", block_idx, "/", ALL_BLOCKS.shape[0])
     np.save(out, ALL_BLOCKS[:block_idx], allow_pickle=False)
-    return p_frame, False
+
+    ALL_BLOCKS_UPDATE.pop(0)
+    ALL_BLOCKS_UPDATE.append([])
+
+    return p_frame

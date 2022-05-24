@@ -21,7 +21,8 @@ def read_exactly(fd, size):
 
 
 def decode(buffer: BufferedReader, n=1):
-    out = []
+    frames_normal = []
+    frames_rect = []
 
     if n <= 0:
         return []
@@ -37,9 +38,8 @@ def decode(buffer: BufferedReader, n=1):
             initial_frame = np.fromstring(initial_frame, dtype=np.uint8)
             initial_frame = cv2.imdecode(initial_frame, cv2.IMREAD_UNCHANGED)
 
-            out.append(initial_frame)
-
             frame = initial_frame
+            frame_rect = initial_frame
         else:
             nb_pts = int.from_bytes(read_exactly(buffer, 2), byteorder="big")
             points = []
@@ -51,6 +51,7 @@ def decode(buffer: BufferedReader, n=1):
             data = np.load(buffer)
 
             frame = np.copy(frame)
+            frame_rect = np.copy(frame)
             frameY, frameX = frame.shape[0], frame.shape[1]
             for block_idx, pos in enumerate(points):
                 ii = pos[0]
@@ -61,17 +62,17 @@ def decode(buffer: BufferedReader, n=1):
                 jj_plus = min(block_size, frameX - jj)
 
                 frame[ii : ii + ii_plus, jj : jj + jj_plus] = block[:ii_plus, :jj_plus]
+                frame_rect[ii : ii + ii_plus, jj : jj + jj_plus] = block[
+                    :ii_plus, :jj_plus
+                ]
+                cv2.rectangle(
+                    frame_rect,
+                    (jj, ii),
+                    (jj + block_size, ii + block_size),
+                    (255, 0, 255),
+                )
 
-        out.append(frame)
+        frames_normal.append(frame)
+        frames_rect.append(frame_rect)
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    video = cv2.VideoWriter(
-        "out/test.mp4", fourcc, float(10), (out[0].shape[1], out[0].shape[0])
-    )
-
-    for f in out:
-        video.write(f)
-
-    video.release()
-
-    return out
+    return frames_normal, frames_rect
